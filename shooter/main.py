@@ -6,6 +6,7 @@ import pygame
 
 pygame.init()
 pygame.font.init()
+pygame.mixer.init()
 
 BASE_PATH = os.path.dirname(__file__)
 FPS = 60
@@ -19,17 +20,23 @@ BACKGROUND = pygame.transform.scale(
 )
 
 PLAYER_SPEED = 8
-MAX_PLAYER_BULLET = 3
-PLAYER_BULLET_SPEED = 10
+MAX_PLAYER_BULLET = 2
+PLAYER_BULLET_SPEED = 8
 PLAYER_HIT = pygame.USEREVENT + 1
 PLAYER_POWERUP = pygame.USEREVENT + 3
 
 BOSS_SPEED = 10
-BOSS_BULLET_SPEED = 15
+BOSS_BULLET_SPEED = 10
 BOSS_HIT = pygame.USEREVENT + 2
 
 HEALTH_FONT = pygame.font.SysFont('comicsans', 30)
 END_GAME_TEXT = pygame.font.SysFont('comicsans', 100)
+
+SOUND_PLAYER_FIRE = pygame.mixer.Sound(os.path.join(BASE_PATH, 'assets', 'player_fire.ogg'))
+SOUND_PLAYER_HIT = pygame.mixer.Sound(os.path.join(BASE_PATH, 'assets', 'player_hit.oga'))
+SOUND_BOSS_FIRE = pygame.mixer.Sound(os.path.join(BASE_PATH, 'assets', 'boss_fire.ogg'))
+SOUND_BOSS_HIT = pygame.mixer.Sound(os.path.join(BASE_PATH, 'assets', 'boss_hit.ogg'))
+SOUND_POWERUPS = pygame.mixer.Sound(os.path.join(BASE_PATH, 'assets', 'powerup.ogg'))
 
 
 class BaseObject(object):
@@ -37,7 +44,6 @@ class BaseObject(object):
         self.rep = None
         self.width = 0
         self.height = 0
-        self.life = 1
         self.bullets = []
         self.power_ups = []
 
@@ -68,6 +74,7 @@ class Player(BaseObject):
         )
         self.bullets = []
         self.life = 3
+        self.max_bullets = MAX_PLAYER_BULLET
 
 
 class Boss(BaseObject):
@@ -128,9 +135,11 @@ def update_canvas(player, boss):
         pygame.draw.rect(SCREEN, (255, 255, 0), power_up.rep)
 
     player_health_text = HEALTH_FONT.render('Health: {}'.format(player.life), 1, (0, 255, 0))
+    player_max_bullet = HEALTH_FONT.render('Max Bullets: {}'.format(player.max_bullets), 1, (0, 255, 0))
     boss_health_text = HEALTH_FONT.render('Health: {}'.format(boss.life), 1, (255, 0, 0))
 
     SCREEN.blit(player_health_text, (10, 10))
+    SCREEN.blit(player_max_bullet, (40 + player_health_text.get_width(), 10))
     SCREEN.blit(boss_health_text, (SCREEN_WIDTH - boss_health_text.get_width() - 10, 10))
 
     pygame.display.update()
@@ -192,10 +201,9 @@ def main():
     running = True
     boss_bullet_timer = 0
     boss_move_timer = 0
-    boss_bullet_freq = 30
+    boss_bullet_freq = 45
 
     player = Player()
-    player_max_bullet = MAX_PLAYER_BULLET
     boss = Boss()
     boss_move_bit = False
 
@@ -211,18 +219,22 @@ def main():
                 running = False
 
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE and len(player.bullets) < player_max_bullet:
+                if event.key == pygame.K_SPACE and len(player.bullets) < player.max_bullets:
                     player.bullets.append(Bullet(x=player.width, y=player.rep.y + player.height / 2 - 8))
+                    SOUND_PLAYER_FIRE.play()
 
             if event.type == PLAYER_HIT:
                 player.life -= 1
+                SOUND_PLAYER_HIT.play()
 
             if event.type == BOSS_HIT:
                 boss.life -= 1
-                boss_bullet_freq -= 3
+                boss_bullet_freq -= 2
+                SOUND_BOSS_HIT.play()
 
             if event.type == PLAYER_POWERUP:
-                player_max_bullet += 1
+                player.max_bullets += 1
+                SOUND_POWERUPS.play()
 
         if boss_move_timer >= 20:
             boss_move_timer = 0
@@ -240,6 +252,7 @@ def main():
                 boss.bullets.append(Bullet(x=boss.rep.x + 45, y=boss.rep.y + boss.height - 18, width=16, height=16))
                 boss.bullets.append(Bullet(x=boss.rep.x, y=boss.rep.y + boss.height / 2 - 8, width=16, height=16))
                 boss.bullets.append(Bullet(x=boss.rep.x + 45, y=boss.rep.y + 2, width=16, height=16))
+                SOUND_BOSS_FIRE.play()
             elif not fire and randrange(10) == 7:
                 boss.power_ups.append(PowerUps(x=boss.rep.x, y=boss.rep.y + boss.height / 2 - 10))
 
